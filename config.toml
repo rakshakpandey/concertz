@@ -1,0 +1,5 @@
+[functions.concerts-api]
+verify_jwt = false
+
+[functions.sync-concerts]
+verify_jwt = true

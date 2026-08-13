@@ -2,4 +2,4 @@
 verify_jwt = false
 
 [functions.sync-concerts]
-verify_jwt = true
+verify_jwt = false

@@ -108,106 +108,28 @@ Concertz replaces fictional sample events with currently web-verified public lis
   These listings were researched from publicly accessible ticket/event pages.
   source is deliberately retained so users can verify the information.
 */
-const API_URL =
-  "https://xjdxaocudstxbzxkpcik.supabase.co/functions/v1/concerts-api";
+const EVENTS = [];
+const CONCERTZ_API = "https://xjdxaocudstxbzxkpcik.supabase.co/functions/v1/concertz-api";
 
-let EVENTS = [];
-let apiLoading = true;
-let apiError = "";
-
-async function loadEvents() {
-  apiLoading = true;
-  apiError = "";
-
-  $("grid").innerHTML = `
-    <div class="empty" style="grid-column:1/-1">
-      <div class="display" style="font-size:32px;color:var(--text)">
-        Loading Concertz…
-      </div>
-      <div style="margin-top:10px">
-        Fetching the latest verified concert listings.
-      </div>
-    </div>
-  `;
-
-  try {
-    const response = await fetch(API_URL, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json"
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`API returned HTTP ${response.status}`);
-    }
-
-    const payload = await response.json();
-
-    if (!Array.isArray(payload.events)) {
-      throw new Error("API response does not contain an events array");
-    }
-
-    EVENTS = payload.events.map((e, index) => ({
-      id: e.id || e.external_id || index,
-      artist: e.artist || "Unknown Artist",
-      genre: e.genre || "Live Music",
-      city: e.city || "India",
-      state: e.state || e.city || "India",
-      venue: e.venue || "Venue TBA",
-      date: e.starts_at,
-      price: Number(e.price_from) || 0,
-      source: e.source || "Unknown",
-      url: e.source_url || "#"
-    }));
-
-    apiLoading = false;
-
-    const updated =
-      payload.lastUpdated
-        ? new Date(payload.lastUpdated).toLocaleString("en-IN", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit"
-          })
-        : "just now";
-
-    $("updated").textContent = `Live · Updated ${updated}`;
-
-    genres();
+async function loadLiveEvents(){
+  $("count").textContent="Syncing live concert data…";
+  try{
+    const res=await fetch(CONCERTZ_API,{cache:"no-store"});
+    if(!res.ok) throw new Error(`API ${res.status}`);
+    const payload=await res.json();
+    const incoming=Array.isArray(payload)?payload:(payload.events||[]);
+    EVENTS.splice(0,EVENTS.length,...incoming);
+    $("updated").textContent=`Live · synced ${new Date(payload.lastUpdated||Date.now()).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"})}`;
     render();
-
-  } catch (error) {
-    console.error("Concertz API error:", error);
-
-    apiLoading = false;
-    apiError = error.message || "Unable to load concerts";
-
-    $("updated").textContent = "API unavailable";
-
-    $("grid").innerHTML = `
-      <div class="empty" style="grid-column:1/-1">
-        <div class="display" style="font-size:32px;color:var(--text)">
-          Unable to load concerts
-        </div>
-
-        <div style="margin-top:10px">
-          ${escapeHTML(apiError)}
-        </div>
-
-        <button
-          class="primary"
-          style="margin-top:20px"
-          onclick="loadEvents()"
-        >
-          Try again
-        </button>
-      </div>
-    `;
+  }catch(err){
+    $("updated").textContent="Live sync unavailable";
+    $("count").textContent="Unable to load live listings";
+    $("grid").innerHTML=`<div class="empty" style="grid-column:1/-1"><div class="display" style="font-size:32px;color:var(--text)">Live data temporarily unavailable</div><p>Try again shortly.</p></div>`;
+    console.error(err);
   }
 }
+function startLiveRefresh(){ loadLiveEvents(); setInterval(loadLiveEvents,15*60*1000); }
+
 
 let state="All India", query="", genre="all", sort="date", days="all", user={lat:null,lon:null};
 
@@ -286,7 +208,7 @@ $("genre").onchange=e=>{genre=e.target.value;render()};
 $("sort").onchange=e=>{sort=e.target.value;render()};
 $("window").onchange=e=>{days=e.target.value;render()};
 $("nearBtn").onclick=locate;
-loadEvents();
+startLiveRefresh();
 </script>
 </body>
 </html>
